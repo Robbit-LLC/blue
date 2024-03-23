@@ -27,7 +27,10 @@ foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
-add_library(${PROJECT_NAME} INTERFACE)
+set(HEADER_FILES include/blue_utils/tf2.hpp include/blue_utils/eigen.hpp)
+
+add_library(${PROJECT_NAME} INTERFACE
+    ${HEADER_FILES})
 
 target_link_libraries(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE

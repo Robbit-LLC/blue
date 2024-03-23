@@ -50,16 +50,6 @@ Controller::Controller(const std::string & node_name)
   this->declare_parameter(
     "frame", std::vector<bool>({true, true, false, false, true, false, false, true}));
 
-  // clang-format off
-  this->declare_parameter(
-    "tcm", std::vector<double>({-0.707,  -0.707,   0.707,  0.707,    0.0,    0.0,   0.0,   0.0,
-                                 0.707,  -0.707,   0.707, -0.707,    0.0,    0.0,   0.0,   0.0,
-                                   0.0,     0.0,     0.0,    0.0,    1.0,   -1.0,  -1.0,   1.0,
-                                   0.0,     0.0,     0.0,    0.0, -0.218, -0.218, 0.218, 0.218,
-                                   0.0,     0.0,     0.0,    0.0,  -0.12,   0.12, -0.12,  0.12,
-                                0.1888, -0.1888, -0.1888, 0.1888,    0.0,    0.0,   0.0,   0.0}));
-  // clang-format on
-
   // Get hydrodynamic parameters
   const double mass = this->get_parameter("mass").as_double();
   const double buoyancy = this->get_parameter("buoyancy").as_double();
@@ -78,12 +68,6 @@ Controller::Controller(const std::string & node_name)
     this->get_parameter("center_of_buoyancy").as_double_array(), 3, 1);
   const Eigen::Matrix<double, 6, 1> ocean_current = blue::utility::vectorToEigen<double>(
     this->get_parameter("ocean_current").as_double_array(), 6, 1);
-
-  // Get the thruster configuration matrix
-  std::vector<double> tcm_vec = this->get_parameter("tcm").as_double_array();
-  const int num_thrusters = this->get_parameter("num_thrusters").as_int();
-  tcm_ = blue::utility::vectorToEigen<double, Eigen::RowMajor>(
-    tcm_vec, static_cast<int>(tcm_vec.size() / num_thrusters), num_thrusters);
 
   // Initialize the hydrodynamic parameters
   hydrodynamics_ = blue::dynamics::HydrodynamicParameters(
@@ -107,17 +91,21 @@ Controller::Controller(const std::string & node_name)
   // NOLINTBEGIN(performance-unnecessary-value-param)
   battery_state_sub_ = this->create_subscription<sensor_msgs::msg::BatteryState>(
     "/mavros/battery", rclcpp::SensorDataQoS(),
-    [this](sensor_msgs::msg::BatteryState::ConstSharedPtr msg) -> void { battery_state_ = *msg; });
+    [this](sensor_msgs::msg::BatteryState::ConstSharedPtr msg) { battery_state_ = *msg; });
 
   odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
     "/mavros/local_position/odom", rclcpp::SensorDataQoS(),
-    [this](nav_msgs::msg::Odometry::ConstSharedPtr msg) -> void { updateOdomCb(msg); });
+    [this](nav_msgs::msg::Odometry::ConstSharedPtr msg) { updateOdomCb(msg); });
+
+  ardu_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
+    "/mavros/local_position/pose", rclcpp::SensorDataQoS(),
+    [this](geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) { arduPoseCb(msg); });
 
   arm_srv_ = this->create_service<std_srvs::srv::SetBool>(
     "blue/cmd/arm",
     [this](
       const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-      std::shared_ptr<std_srvs::srv::SetBool::Response> response) -> void {
+      std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
       armControllerCb(request, response);
     });
   // NOLINTEND(performance-unnecessary-value-param)
@@ -128,13 +116,12 @@ Controller::Controller(const std::string & node_name)
   // Give the control loop its own callback group to avoid issues with long callbacks in the
   // default callback group
   control_loop_timer_ = this->create_wall_timer(
-    std::chrono::duration<double>(dt_),
-    [this]() -> void {
-      if (armed_) {
-        rc_override_pub_->publish(calculateControlInput());
-      }
-    },
-    control_loop_cb_group_);
+    std::chrono::duration<double>(dt_), [this]() { timerCb(); }, control_loop_cb_group_);
+
+  // Init dynamic transforms
+  tf_map_odom_.setIdentity();
+  tf_odom_base_.setIdentity();
+  tf_base_odom_ = tf_odom_base_.inverse();
 }
 
 void Controller::armControllerCb(
@@ -189,25 +176,40 @@ void Controller::updateOdomCb(nav_msgs::msg::Odometry::ConstSharedPtr msg)  // N
 
   accel_pub_->publish(accel_stamped);
 
-  // Publish the current transformation from the map frame to the base_link frame
-  geometry_msgs::msg::TransformStamped tf;
-  tf.header.frame_id = "map";
-  tf.header.stamp = this->get_clock()->now();
-  tf.child_frame_id = "base_link";
-
-  tf.transform.translation.x = msg->pose.pose.position.x;
-  tf.transform.translation.y = msg->pose.pose.position.y;
-  tf.transform.translation.z = msg->pose.pose.position.z;
-
-  tf.transform.rotation.x = msg->pose.pose.orientation.x;
-  tf.transform.rotation.y = msg->pose.pose.orientation.y;
-  tf.transform.rotation.z = msg->pose.pose.orientation.z;
-  tf.transform.rotation.w = msg->pose.pose.orientation.w;
-
-  tf_broadcaster_->sendTransform(tf);
-
   // Update the current Odometry reading
   odom_ = *msg;
+
+  tf_odom_base_ = tf2::poseMsgToTransform(odom_.pose.pose);
+  tf_base_odom_ = tf_odom_base_.inverse();
+}
+
+void Controller::arduPoseCb(const geometry_msgs::msg::PoseStamped::ConstSharedPtr & msg)
+{
+    ardu_pose_ = *msg;
+
+    auto tf_map_base = tf2::poseMsgToTransform(ardu_pose_.pose);
+    tf_map_odom_ = tf_map_base * tf_base_odom_;
+}
+
+void Controller::timerCb()
+{
+  if (armed_) {
+    rc_override_pub_->publish(calculateControlInput());
+  }
+
+  publishTf("odom", "base_link", tf_odom_base_);
+  publishTf("map", "odom", tf_map_odom_);
+}
+
+void Controller::publishTf(std::string parent, std::string child, const tf2::Transform & tf)
+{
+  geometry_msgs::msg::TransformStamped tm;
+  tm.header.frame_id = std::move(parent);
+  tm.child_frame_id = std::move(child);
+  tm.transform = tf2::toMsg(tf);
+  // Adding time to the transform avoids problems and improves rviz2 display
+  tm.header.stamp = now();
+  tf_broadcaster_->sendTransform(tm);
 }
 
 }  // namespace blue::control

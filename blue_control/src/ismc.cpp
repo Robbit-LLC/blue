@@ -34,11 +34,12 @@ namespace blue::control
 {
 
 ISMC::ISMC()
-: Controller("ismc"),
-  initial_velocity_error_(Eigen::Vector6d::Zero()),
-  initial_acceleration_error_(Eigen::Vector6d::Zero()),
-  total_velocity_error_(Eigen::Vector6d::Zero())
+: Controller("ismc")
 {
+  initial_velocity_error_ = Eigen::Vector6d::Zero();
+  initial_acceleration_error_ = Eigen::Vector6d::Zero();
+  total_velocity_error_ = Eigen::Vector6d::Zero();
+
   // Declare the ROS parameters specific to this controller
   this->declare_parameter("integral_gain", std::vector<double>({1.0, 1.0, 1.0, 1.0, 1.0, 1.0}));
   this->declare_parameter("proportional_gain", std::vector<double>({1.0, 1.0, 1.0, 1.0, 1.0, 1.0}));
@@ -77,8 +78,7 @@ ISMC::ISMC()
   topic_ss << "/blue/" << this->get_name() << "/cmd_vel";
   cmd_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
     topic_ss.str(), rclcpp::QoS(1),
-    [this](geometry_msgs::msg::Twist::ConstSharedPtr msg) -> void  // NOLINT
-    { cmd_ = *msg; });
+    [this](const geometry_msgs::msg::Twist::ConstSharedPtr & msg) { cmd_ = *msg; });
 }
 
 void ISMC::onArm()
@@ -105,7 +105,7 @@ void ISMC::onArm()
   Eigen::Vector6d accel;
   tf2::fromMsg(accel_, accel);
   initial_acceleration_error_ -= accel;
-};
+}
 
 void ISMC::onDisarm()
 {
@@ -115,7 +115,7 @@ void ISMC::onDisarm()
   // Reset the initial conditions too
   initial_velocity_error_ = Eigen::Vector6d::Zero();
   initial_acceleration_error_ = Eigen::Vector6d::Zero();
-};
+}
 
 mavros_msgs::msg::OverrideRCIn ISMC::calculateControlInput()
 {
@@ -194,13 +194,14 @@ mavros_msgs::msg::OverrideRCIn ISMC::calculateControlInput()
 
   try {
     transform = tf_buffer_->lookupTransform(
-      blue::transforms::kBaseLinkFrdFrameId, blue::transforms::kBaseLinkFrameId,
+      blue::transforms::kBaseLinkFrdFrameId.data(), blue::transforms::kBaseLinkFrameId.data(),
       tf2::TimePointZero);
   }
   catch (const tf2::TransformException & e) {
     RCLCPP_INFO(  // NOLINT
       this->get_logger(), "Could not transform from %s to %s: %s",
-      blue::transforms::kBaseLinkFrameId, blue::transforms::kBaseLinkFrdFrameId, e.what());
+      blue::transforms::kBaseLinkFrameId.data(), blue::transforms::kBaseLinkFrdFrameId.data(),
+      e.what());
     return msg;
   }
 
@@ -208,44 +209,28 @@ mavros_msgs::msg::OverrideRCIn ISMC::calculateControlInput()
   tf2::doTransform(wrench, wrench_frd, transform);
   tf2::fromMsg(wrench_frd.wrench, forces);
 
-  // Multiply the desired forces by the pseudoinverse of the thruster configuration matrix
-  // The size of this vector will depend on the number of thrusters so we don't assign it to a
-  // fixed-size matrix
-  Eigen::VectorXd thruster_forces = tcm_.completeOrthogonalDecomposition().pseudoInverse() * forces;
-
   // Convert the thruster forces to PWM values
   Eigen::VectorXi pwms;
 
   if (use_battery_state_) {
-    pwms = thruster_forces.unaryExpr([this](double x) {
+    pwms = forces.unaryExpr([this](double x) {
       return blue::dynamics::calculatePwmFromThrustSurface(x, battery_state_.voltage);
     });
   } else {
-    pwms = thruster_forces.unaryExpr(
-      [this](double x) { return blue::dynamics::calculatePwmFromThrustCurve(x); });
+    pwms = forces.unaryExpr([](double x) {
+      return blue::dynamics::calculatePwmFromThrustCurve(x);
+    });
   }
 
-  // Calculate the deadzone band
-  std::tuple<int, int> deadband;
-
-  if (use_battery_state_) {
-    deadband = blue::dynamics::calculateDeadZone(battery_state_.voltage);
-  } else {
-    deadband = blue::dynamics::calculateDeadZone();
-  }
-
-  // Set the PWM values
-  for (int i = 0; i < pwms.size(); i++) {
-    auto pwm = static_cast<uint16_t>(pwms[i]);
-
-    // Apply the deadband to the PWM values
-    if (pwm > std::get<0>(deadband) && pwm < std::get<1>(deadband)) {
-      pwm = blue::dynamics::kNoThrustPwm;
-    }
-
-    // Clamp the PWM to the valid PWM range
-    msg.channels[i] = std::clamp(pwm, blue::dynamics::kMinPwm, blue::dynamics::kMaxPwm);
-  }
+  // Channel arrangement: https://www.ardusub.com/developers/rc-input-and-output.html
+  msg.channels[0] = static_cast<int16_t>(pwms[4]);
+  msg.channels[1] = static_cast<int16_t>(pwms[3]);
+  // Invert throttle value
+  msg.channels[2] = blue::dynamics::kMaxPwm - (static_cast<int16_t>(pwms[2]) -
+                                                                     blue::dynamics::kMinPwm);
+  msg.channels[3] = static_cast<int16_t>(pwms[5]);
+  msg.channels[4] = static_cast<int16_t>(pwms[0]);
+  msg.channels[5] = static_cast<int16_t>(pwms[1]);
 
   return msg;
 }

@@ -30,12 +30,12 @@ namespace blue::dynamics
 {
   // The minimum PWM in the deadzone increases as the voltage increases
   // This is best represented by a 3rd order polynomial
-  const int min_deadzone = static_cast<int>(std::round(
+  const auto min_deadzone = static_cast<int>(std::round(
     0.00926 * std::pow(voltage, 3) - 0.488 * std::pow(voltage, 2) + 9.749 * voltage + 1401.84));
 
   // The maximum PWM in the deadzone decreases as the voltage increases
   // This is best represented by a 4th order polynomial
-  const int max_deadzone = static_cast<int>(std::round(
+  const auto max_deadzone = static_cast<int>(std::round(
     -0.005208 * std::pow(voltage, 4) + 0.3264 * std::pow(voltage, 3) -
     7.354 * std::pow(voltage, 2) + 69.087 * voltage + 1310.19));
 

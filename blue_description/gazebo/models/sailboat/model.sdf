@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+    <model name="sailboat">
+        <static>true</static>
+        <!-- There was a problem with .dae model usage for collision.
+             Stl model is better suited for collision https://answers.gazebosim.org//question/8830/collision-and-collada-meshes/ -->
+        <link name="sailboat_link">
+            <collision name="sailboat_collision">
+                <geometry>
+                    <mesh>
+                        <uri>model://sailboat/meshes/sail.stl</uri>
+                        <scale>0.15 0.15 0.15</scale>
+                    </mesh>
+                </geometry>
+            </collision>
+
+            <visual name="sailboat_visual">
+                <geometry>
+                    <mesh>
+                        <uri>model://sailboat/meshes/sail.dae</uri>
+                        <scale>0.15 0.15 0.15</scale>
+                    </mesh>
+                </geometry>
+            </visual>
+        </link>
+    </model>
+</sdf>

@@ -29,7 +29,7 @@ from rcl_interfaces.srv import SetParameters
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import qos_profile_default, qos_profile_parameter_events
+from rclpy.qos import qos_profile_system_default, qos_profile_parameter_events
 from std_srvs.srv import SetBool
 
 
@@ -119,12 +119,12 @@ class Manager(Node):
 
         # Publishers
         self.override_rc_in_pub = self.create_publisher(
-            OverrideRCIn, "/mavros/rc/override", qos_profile_default
+            OverrideRCIn, "/mavros/rc/override", qos_profile_system_default
         )
         self.gp_origin_pub = self.create_publisher(
             GeoPointStamped,
             "/mavros/global_position/set_gp_origin",
-            qos_profile_default,
+            qos_profile_system_default,
         )
 
         # Services

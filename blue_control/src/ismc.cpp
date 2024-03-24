@@ -209,6 +209,9 @@ mavros_msgs::msg::OverrideRCIn ISMC::calculateControlInput()
   tf2::doTransform(wrench, wrench_frd, transform);
   tf2::fromMsg(wrench_frd.wrench, forces);
 
+//  TODO: My opinion is that PWM is not good therm in all usages in this file, because it is
+//   tightly coupled to motors, but here in ROS, we are manipulating with 6DoF values
+
   // Convert the thruster forces to PWM values
   Eigen::VectorXi pwms;
 
@@ -223,14 +226,12 @@ mavros_msgs::msg::OverrideRCIn ISMC::calculateControlInput()
   }
 
   // Channel arrangement: https://www.ardusub.com/developers/rc-input-and-output.html
-  msg.channels[0] = static_cast<int16_t>(pwms[4]);
-  msg.channels[1] = static_cast<int16_t>(pwms[3]);
-  // Invert throttle value
-  msg.channels[2] = blue::dynamics::kMaxPwm - (static_cast<int16_t>(pwms[2]) -
-                                                                     blue::dynamics::kMinPwm);
-  msg.channels[3] = static_cast<int16_t>(pwms[5]);
-  msg.channels[4] = static_cast<int16_t>(pwms[0]);
-  msg.channels[5] = static_cast<int16_t>(pwms[1]);
+  msg.channels[0] = static_cast<uint16_t>(pwms[4]);
+  msg.channels[1] = static_cast<uint16_t>(pwms[3]);
+  msg.channels[2] = blue::dynamics::invertPwm(static_cast<uint16_t>(pwms[2]));
+  msg.channels[3] = static_cast<uint16_t>(pwms[5]);
+  msg.channels[4] = static_cast<uint16_t>(pwms[0]);
+  msg.channels[5] = static_cast<uint16_t>(pwms[1]);
 
   return msg;
 }

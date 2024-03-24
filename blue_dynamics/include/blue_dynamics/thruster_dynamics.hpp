@@ -87,4 +87,15 @@ const uint16_t kNoThrustPwm = 1500;
  */
 [[nodiscard]] int calculatePwmFromThrustCurve(double force);
 
+/**
+ * @brief Invert PWM value in range of kMinPwm to kMaxPwm
+ *
+ * @note If PWM value was 1100 (minimal) it will be converted to 1900 (maximal), 1101 to 1899,
+ * etc...
+ *
+ * @param pwm The desired pwm value.
+ * @return The inverted PWM value.
+ */
+[[nodiscard]] uint16_t invertPwm(uint16_t pwm);
+
 }  // namespace blue::dynamics

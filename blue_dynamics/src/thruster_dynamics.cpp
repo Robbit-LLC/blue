@@ -93,4 +93,9 @@ namespace blue::dynamics
   return static_cast<int>(std::round(pwm));
 }
 
+[[nodiscard]] uint16_t invertPwm(uint16_t pwm)
+{
+  return kMaxPwm - (pwm - kMinPwm);
+}
+
 }  // namespace blue::dynamics

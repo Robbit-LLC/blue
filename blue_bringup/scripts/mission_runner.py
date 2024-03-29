@@ -31,13 +31,13 @@ Usage:
 -- ros2 run orca_bringup mission_runner.py
 """
 
+from enum import Enum
+
 import rclpy
 import rclpy.logging
 from action_msgs.msg import GoalStatus
-from enum import Enum
 from geometry_msgs.msg import Point, Pose, PoseStamped
 from nav2_msgs.action import FollowWaypoints
-# from orca_msgs.action import TargetMode
 from rclpy.action import ActionClient
 from std_msgs.msg import Header
 
@@ -53,14 +53,6 @@ def make_pose(x: float, y: float, z: float):
         header=Header(frame_id="map"), pose=Pose(position=Point(x=x, y=y, z=z))
     )
 
-
-# # Go to AUV mode
-# go_auv = TargetMode.Goal()
-# go_auv.target_mode = TargetMode.Goal.ORCA_MODE_AUV
-#
-# # Go to ROV mode
-# go_rov = TargetMode.Goal()
-# go_rov.target_mode = TargetMode.Goal.ORCA_MODE_ROV
 
 # Go home (1m deep)
 go_home = FollowWaypoints.Goal()
@@ -148,7 +140,6 @@ def send_goal(node, action_client, send_goal_msg) -> SendGoalResult:
 
 def main():
     node = None
-    set_target_mode = None
     follow_waypoints = None
 
     rclpy.init()
@@ -156,24 +147,14 @@ def main():
     try:
         node = rclpy.create_node("mission_runner")
 
-        # set_target_mode = ActionClient(node, TargetMode, "/set_target_mode")
         follow_waypoints = ActionClient(node, FollowWaypoints, "/follow_waypoints")
 
-        # print(">>> Setting mode to AUV <<<")
-        # if send_goal(node, set_target_mode, go_auv) == SendGoalResult.SUCCESS:
         print(">>> Executing mission <<<")
         send_goal(node, follow_waypoints, delay_loop)
 
-        # print(">>> Setting mode to ROV <<<")
-        # send_goal(node, set_target_mode, go_rov)
-
         print(">>> Mission complete <<<")
-        # else:
-        #     print(">>> Failed to set mode to AUV, quit <<<")
 
     finally:
-        if set_target_mode is not None:
-            set_target_mode.destroy()
         if follow_waypoints is not None:
             follow_waypoints.destroy()
         if node is not None:

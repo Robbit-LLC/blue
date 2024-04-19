@@ -22,7 +22,7 @@ import rclpy
 from geometry_msgs.msg import Twist
 from mavros_msgs.msg import OverrideRCIn
 from rclpy.node import Node
-from rclpy.qos import qos_profile_default
+from rclpy.qos import qos_profile_system_default
 from std_msgs.msg import Bool
 
 
@@ -53,24 +53,24 @@ class JoyInterface(Node):
             Bool,
             "/blue/joy_interface/start_vel_control",
             self.start_vel_control_cb,
-            qos_profile_default,
+            qos_profile_system_default,
         )
         self.start_pwm_cmd_sub = self.create_subscription(
             Bool,
             "/blue/joy_interface/start_pwm_control",
             self.start_pwm_control_cb,
-            qos_profile_default,
+            qos_profile_system_default,
         )
         self.cmd_vel_sub = self.create_subscription(
             Twist,
             "/blue/joy_interface/cmd_vel",
             self.manual_control_cb,
-            qos_profile_default,
+            qos_profile_system_default,
         )
 
         # Publishers
         self.override_rc_in_pub = self.create_publisher(
-            OverrideRCIn, "/mavros/rc/override", qos_profile_default
+            OverrideRCIn, "/mavros/rc/override", qos_profile_system_default
         )
 
         controller_name = (
@@ -125,7 +125,6 @@ class JoyInterface(Node):
         if self.vel_control:
             self.cmd_vel_pub.publish(cmd)
         else:
-            rc = OverrideRCIn()
             channels = [OverrideRCIn.CHAN_NOCHANGE] * 18
 
             channels[4] = int(

@@ -68,7 +68,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             "use_sim_time",
             default_value="false",
-            description=("Use the simulated Gazebo clock."),
+            description="Use the simulated Gazebo clock.",
         ),
     ]
 

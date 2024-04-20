@@ -334,9 +334,11 @@ def generate_launch_description() -> LaunchDescription:
                 PathJoinSubstitution([FindPackageShare("blue_bringup"), "launch",
                                       "navigation_launch.py"])
             ),
+            # TODO: These arguments are hard-coded, we should revisit and decide about
+            #  configuration of each one
             launch_arguments={
                 'namespace': '',
-                'use_sim_time': 'False',
+                'use_sim_time': use_sim,
                 'autostart': 'True',
                 'params_file': configured_nav2_params,
                 'use_composition': 'False',

@@ -80,11 +80,6 @@ protected:
   blue::dynamics::HydrodynamicParameters hydrodynamics_;
 
   /**
-   * @brief The thruster configuration matrix for the BlueROV2.
-   */
-  Eigen::MatrixXd tcm_;
-
-  /**
    * @brief The current state of the battery.
    *
    * @note This can be used to approximate the thrust curve according to the current battery
@@ -137,6 +132,12 @@ private:
    */
   void updateOdomCb(nav_msgs::msg::Odometry::ConstSharedPtr msg);
 
+  void arduPoseCb(const geometry_msgs::msg::PoseStamped::ConstSharedPtr & msg);
+
+  void timerCb();
+
+  void publishTf(std::string parent, std::string child, const tf2::Transform& tf);
+
   // Manages whether or not control inputs are sent to ArduSub
   bool armed_{false};
 
@@ -161,6 +162,15 @@ private:
 
   // Services
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr arm_srv_;
+
+  geometry_msgs::msg::PoseStamped ardu_pose_;  // Pose from ArduSub EKF
+
+  // Dynamic transforms
+  tf2::Transform tf_map_odom_;
+  tf2::Transform tf_odom_base_;
+
+  // Inverse odom transformation
+  tf2::Transform tf_base_odom_;
 };
 
 }  // namespace blue::control

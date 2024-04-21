@@ -52,7 +52,7 @@ namespace blue::dynamics
 {
   // Coefficients for the surface identified by fitting a surface to the thrust curves for the
   // voltages 10, 12, 14, 16, 18, 20 using Matlab's `fit` function with the `Poly23` surface
-  const double p00 = 1439;
+  const double p00 = kNoThrustPwm;
   const double p10 = 7.621;
   const double p01 = 42.06;
   const double p20 = -0.2692;
@@ -81,7 +81,7 @@ namespace blue::dynamics
 
   // Coefficients for the 4th-degree polynomial fit to the thrust curve for the T200 run using
   // a battery at 18v. The polynomial was identified using Matlab's `fit` function.
-  const double p00 = 1498;
+  const double p00 = kNoThrustPwm;
   const double p01 = 12.01;
   const double p02 = -0.04731;
   const double p03 = -0.002098;
@@ -91,6 +91,11 @@ namespace blue::dynamics
                      p04 * std::pow(force, 4);
 
   return static_cast<int>(std::round(pwm));
+}
+
+[[nodiscard]] uint16_t invertPwm(uint16_t pwm)
+{
+  return kMaxPwm - (pwm - kMinPwm);
 }
 
 }  // namespace blue::dynamics

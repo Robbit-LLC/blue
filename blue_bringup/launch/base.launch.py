@@ -17,7 +17,9 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+import os
 
+from ament_index_python import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
@@ -25,6 +27,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from nav2_common.launch import RewrittenYaml
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -33,6 +36,22 @@ def generate_launch_description() -> LaunchDescription:
     Returns:
         The base launch file for BlueROV2 configurations.
     """
+
+    nav2_bt_file = os.path.join(get_package_share_directory('blue_bringup'), "behavior_trees",
+                                "blue_bt.xml")
+    nav2_params_file = PathJoinSubstitution(
+        [FindPackageShare("blue_bringup"), "params", "nav2_params.yaml"]
+    )
+
+    # Rewrite to add the full path
+    # The rewriter will only rewrite existing keys
+    configured_nav2_params = RewrittenYaml(
+        source_file=nav2_params_file,
+        param_rewrites={
+            'default_nav_to_pose_bt_xml': nav2_bt_file,
+        },
+        convert_types=True)
+
     args = [
         DeclareLaunchArgument(
             "description_package",
@@ -147,6 +166,11 @@ def generate_launch_description() -> LaunchDescription:
             "robot_description",
             default_value="",
             description="The model URDF file.",
+        ),
+        DeclareLaunchArgument(
+            'nav',
+            default_value='True',
+            description='Launch navigation?',
         ),
     ]
 
@@ -303,6 +327,26 @@ def generate_launch_description() -> LaunchDescription:
                 "controller": LaunchConfiguration("controller"),
                 "use_sim_time": use_sim,
             }.items(),
+        ),
+        # Include the rest of Nav2
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution([FindPackageShare("blue_bringup"), "launch",
+                                      "navigation_launch.py"])
+            ),
+            # TODO: These arguments are hard-coded, we should revisit and decide about
+            #  configuration of each one
+            launch_arguments={
+                'namespace': '',
+                'use_sim_time': use_sim,
+                'autostart': 'True',
+                'params_file': configured_nav2_params,
+                'use_composition': 'False',
+                'use_respawn': 'True',
+                'container_name': 'nav2_container',
+                'cmd_vel_topic': ['/blue/ismc/cmd_vel']
+            }.items(),
+            condition=IfCondition(LaunchConfiguration('nav')),
         ),
     ]
 

@@ -1,19 +1,20 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.12.2)
 project(blue_bringup)
 
-set(THIS_PACKAGE_INCLUDE_DEPENDS
-  rclcpp
-  rclpy
-  ament_cmake
-)
+find_package(ament_cmake_auto REQUIRED)
+ament_auto_find_build_dependencies()
 
-foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
-  find_package(${Dependency} REQUIRED)
-endforeach()
+# Load & run linters listed in package.xml
+if (BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  ament_lint_auto_find_test_dependencies()
+endif ()
 
+# Install scripts
 install(
-  DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
+    PROGRAMS
+    scripts/mission_runner.py
+    DESTINATION lib/${PROJECT_NAME}
 )
 
-ament_package()
+ament_auto_package(INSTALL_TO_SHARE behavior_trees launch params)

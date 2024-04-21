@@ -165,6 +165,7 @@ RUN [ "/bin/bash" , "-c" , " \
 
 # Install Gazebo
 WORKDIR $USER_WORKSPACE
+RUN ls -la src/blue
 RUN sudo apt-get -q update \
     && sudo apt-get -q -y upgrade \
     && vcs import src < src/blue/blue.repos \

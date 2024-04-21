@@ -1,4 +1,4 @@
-FROM ghcr.io/robotic-decision-making-lab/blue:humble-desktop-nvidia
+FROM ghcr.io/Robbit-LLC/blue:humble-desktop-nvidia
 
 # Install ROS dependencies
 # This is done in a previous stage, but we include it again here in case anyone wants to

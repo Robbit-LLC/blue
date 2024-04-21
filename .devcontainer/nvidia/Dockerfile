@@ -1,4 +1,4 @@
-FROM ghcr.io/robotic-decision-making-lab/blue:rolling-desktop-nvidia
+FROM ghcr.io/robotic-decision-making-lab/blue:humble-desktop-nvidia
 
 # Install ROS dependencies
 # This is done in a previous stage, but we include it again here in case anyone wants to
@@ -24,3 +24,6 @@ RUN python3 -m pip install -r requirements-dev.txt \
 # Disable the setuputils installation warning
 # This prevents us from needing to pin the setuputils version (which doesn't always work)
 ENV PYTHONWARNINGS="ignore"
+
+RUN . "/opt/ros/${ROS_DISTRO}/setup.sh" \
+    && colcon build

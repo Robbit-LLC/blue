@@ -1,28 +1,29 @@
 name: Docker
 
 on:
-  schedule:
-    - cron: "0 17 * * 6"
+#  schedule:
+#    - cron: "0 17 * * 6"
   push:
     branches:
-      - main
+#      - main
+      - github-actions
   pull_request:
-    paths:
-      - .docker/**
-      - .github/workflows/docker.yaml
-      - blue.repos
-      - requirements-build.txt
+#    paths:
+#      - .docker/**
+#      - .github/workflows/docker.yaml
+#      - blue.repos
+#      - requirements-build.txt
   workflow_dispatch:
 
 env:
-  PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robotic-Decision-Making-Lab/blue') }}
+  PUSH: ${{ (github.event_name != 'pull_request') && (github.repository == 'Robbit-LLC/blue') }}
 
 jobs:
   ci:
     strategy:
       fail-fast: false
       matrix:
-        ROS_DISTRO: [rolling]
+        ROS_DISTRO: [humble]
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -62,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ROS_DISTRO: [rolling]
+        ROS_DISTRO: [humble]
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -109,7 +110,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ROS_DISTRO: [rolling]
+        ROS_DISTRO: [humble]
     runs-on: ubuntu-latest
     permissions:
       packages: write
